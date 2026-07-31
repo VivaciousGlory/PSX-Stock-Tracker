@@ -2,7 +2,7 @@ name: PSX Stock Tracker
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/10 * * * *"
 
   workflow_dispatch:
 
@@ -27,5 +27,6 @@ jobs:
       - name: Run PSX tracker
         env:
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+          MANUAL_RUN: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
         run: |
           python psx.py
