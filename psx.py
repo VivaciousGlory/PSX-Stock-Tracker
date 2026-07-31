@@ -7,32 +7,37 @@ import os
 import json
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
+import os
 import sys
-
-# ============================================================
-# PSX MARKET HOURS CHECK
-# ============================================================
 
 PAKISTAN_TZ = ZoneInfo("Asia/Karachi")
 
 now = datetime.now(PAKISTAN_TZ)
 
-# Saturday / Sunday
-if now.weekday() >= 5:
-    print("PSX CLOSED - Weekend")
-    sys.exit(0)
+MANUAL_RUN = os.environ.get("MANUAL_RUN") == "1"
 
-current_time = now.time()
-
-# Run only during PSX trading hours
 MARKET_OPEN = time(9, 30)
 MARKET_CLOSE = time(15, 40)
 
-if not (MARKET_OPEN <= current_time <= MARKET_CLOSE):
-    print("PSX CLOSED - Outside market hours")
+market_open = (
+    now.weekday() < 5
+    and MARKET_OPEN <= now.time() <= MARKET_CLOSE
+)
+
+if not market_open and not MANUAL_RUN:
+    if now.weekday() >= 5:
+        print("PSX CLOSED - Weekend")
+    else:
+        print("PSX CLOSED - Outside market hours")
+
+    print("Automatic run - nothing to update.")
     sys.exit(0)
 
-print("PSX OPEN")
+if MANUAL_RUN:
+    print("MANUAL RUN - proceeding even though PSX may be closed.")
+else:
+    print("PSX OPEN")
+
 print("Pakistan time:", now.strftime("%Y-%m-%d %H:%M:%S"))
 # ============================================================
 # SETTINGS
