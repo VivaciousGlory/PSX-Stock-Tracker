@@ -356,7 +356,7 @@ update_time = now.strftime("%I:%M:%S %p")
 
 sheet.update(
     range_name="T2",
-    values=[[f"{update_date}\n {update_time}"]]
+    values=[[f"{update_date}\n{update_time}"]]
 )
 
 # ============================================================
