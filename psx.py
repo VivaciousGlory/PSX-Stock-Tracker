@@ -17,8 +17,12 @@ now = datetime.now(PAKISTAN_TZ)
 
 MANUAL_RUN = os.environ.get("MANUAL_RUN") == "1"
 
-MARKET_OPEN = time(9, 30)
-MARKET_CLOSE = time(15, 40)
+if now.weekday() == 4:  # Friday
+    MARKET_OPEN = datetime.strptime("09:30", "%H:%M").time()
+    MARKET_CLOSE = datetime.strptime("16:00", "%H:%M").time()
+else:
+    MARKET_OPEN = datetime.strptime("09:30", "%H:%M").time()
+    MARKET_CLOSE = datetime.strptime("15:30", "%H:%M").time()
 
 market_open = (
     now.weekday() < 5
@@ -322,7 +326,7 @@ for i, row in enumerate(tickers):
         current_results.append([current])
 
     # Small delay
-    time.sleep(1)
+    time.sleep(0.2)
 
 
 # ============================================================
