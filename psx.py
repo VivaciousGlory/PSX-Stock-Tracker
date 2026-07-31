@@ -5,7 +5,8 @@ import requests
 import time
 import os
 import json
-from datetime import datetime, time
+import time
+from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
 import sys
