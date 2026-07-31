@@ -349,13 +349,14 @@ sheet.update(
 )
 from datetime import datetime
 from zoneinfo import ZoneInfo
-update_time = datetime.now(
-    ZoneInfo("Asia/Karachi")
-).strftime("%d-%m-%Y %I:%M:%S %p")
+
+
+update_date = now.strftime("%d-%m-%Y")
+update_time = now.strftime("%I:%M:%S %p")
 
 sheet.update(
     range_name="T2",
-    values=[[f"Last Updated: {update_time}"]]
+    values=[[f"{update_date}\n {update_time}"]]
 )
 
 # ============================================================
