@@ -337,7 +337,16 @@ sheet.update(
     range_name=CURRENT_RANGE,
     values=current_results
 )
+from datetime import datetime
+from zoneinfo import ZoneInfo
+update_time = datetime.now(
+    ZoneInfo("Asia/Karachi")
+).strftime("%d-%m-%Y %I:%M:%S %p")
 
+sheet.update(
+    range_name="T2",
+    values=[[f"Last Updated: {update_time}"]]
+)
 
 # ============================================================
 # DONE
