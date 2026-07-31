@@ -3,7 +3,8 @@ import gspread
 from google.oauth2.service_account import Credentials
 import requests
 import time
-
+import os
+import json
 
 # ============================================================
 # SETTINGS
@@ -31,8 +32,12 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-credentials = Credentials.from_service_account_file(
-    SERVICE_ACCOUNT_FILE,
+service_account_info = json.loads(
+    os.environ["GOOGLE_SERVICE_ACCOUNT"]
+)
+
+credentials = Credentials.from_service_account_info(
+    service_account_info,
     scopes=SCOPES
 )
 
