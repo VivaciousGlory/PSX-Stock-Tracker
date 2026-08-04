@@ -54,11 +54,11 @@ WORKSHEET_NAME = "Stock Market"
 
 SERVICE_ACCOUNT_FILE = "service_account.json"
 
-TICKER_RANGE = "B3:B15"
+TICKER_RANGE = "B4:B16"
 
-LDCP_RANGE = "F3:F15"
+LDCP_RANGE = "F4:F16"
 
-CURRENT_RANGE = "G3:G15"
+CURRENT_RANGE = "G4:G16"
 
 
 # ============================================================
