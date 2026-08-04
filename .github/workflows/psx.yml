@@ -3,14 +3,13 @@ name: PSX Stock Tracker
 on:
   schedule:
     # Monday-Thursday
-    # 04:30-11:00 UTC = 09:30-16:00 PKT
-    - cron: "*/5 4-10 * * 1-4"
+    - cron: "7,17,27,37,47,57 4-10 * * 1-4"
 
-    # Friday
-    # 04:00-07:00 UTC = 09:00-12:00 PKT
-    # 09:00-12:00 UTC = 14:00-17:00 PKT
-    - cron: "*/5 4-6 * * 5"
-    - cron: "*/5 9-11 * * 5"
+    # Friday morning
+    - cron: "7,17,27,37,47,57 4-6 * * 5"
+
+    # Friday afternoon
+    - cron: "7,17,27,37,47,57 9-11 * * 5"
 
   workflow_dispatch:
 
