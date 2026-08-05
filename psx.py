@@ -5,11 +5,15 @@ import requests
 import time
 import os
 import json
-import time
-from datetime import datetime
-from zoneinfo import ZoneInfo
-import os
 import sys
+
+from datetime import datetime, time as datetime_time
+from zoneinfo import ZoneInfo
+
+
+# ============================================================
+# TIMEZONE
+# ============================================================
 
 PAKISTAN_TZ = ZoneInfo("Asia/Karachi")
 
@@ -17,33 +21,110 @@ now = datetime.now(PAKISTAN_TZ)
 
 MANUAL_RUN = os.environ.get("MANUAL_RUN") == "1"
 
-if now.weekday() == 4:  # Friday
-    MARKET_OPEN = datetime.strptime("09:30", "%H:%M").time()
-    MARKET_CLOSE = datetime.strptime("16:00", "%H:%M").time()
+
+# ============================================================
+# PSX MARKET HOURS
+# ============================================================
+
+# Monday - Thursday
+# 09:30 AM - 03:30 PM PKT
+
+# Friday
+# 09:30 AM - 04:00 PM PKT
+
+if now.weekday() == 4:
+    # Friday
+    MARKET_OPEN = datetime_time(9, 30)
+    MARKET_CLOSE = datetime_time(16, 0)
 else:
-    MARKET_OPEN = datetime.strptime("09:30", "%H:%M").time()
-    MARKET_CLOSE = datetime.strptime("15:30", "%H:%M").time()
+    # Monday - Thursday
+    MARKET_OPEN = datetime_time(9, 30)
+    MARKET_CLOSE = datetime_time(15, 30)
+
+
+# ============================================================
+# FINAL CHECK WINDOW
+# ============================================================
+
+# The final GitHub Actions check is scheduled around:
+#
+# 16:07 PKT
+#
+# Allow automatic updates until 16:15 PKT.
+
+FINAL_CHECK_END = datetime_time(16, 15)
+
+
+# ============================================================
+# DETERMINE CURRENT RUN
+# ============================================================
+
+is_weekday = now.weekday() < 5
 
 market_open = (
-    now.weekday() < 5
+    is_weekday
     and MARKET_OPEN <= now.time() <= MARKET_CLOSE
 )
 
-if not market_open and not MANUAL_RUN:
-    if now.weekday() >= 5:
-        print("PSX CLOSED - Weekend")
-    else:
-        print("PSX CLOSED - Outside market hours")
+final_check = (
+    is_weekday
+    and MARKET_CLOSE < now.time() <= FINAL_CHECK_END
+)
 
-    print("Automatic run - nothing to update.")
-    sys.exit(0)
+
+# ============================================================
+# RUN DECISION
+# ============================================================
 
 if MANUAL_RUN:
-    print("MANUAL RUN - proceeding even though PSX may be closed.")
-else:
-    print("PSX OPEN")
 
-print("Pakistan time:", now.strftime("%Y-%m-%d %H:%M:%S"))
+    print("========================================")
+    print("MANUAL RUN")
+    print("========================================")
+    print("Proceeding regardless of market hours.")
+    print("")
+
+elif market_open:
+
+    print("========================================")
+    print("PSX OPEN")
+    print("========================================")
+    print("Normal market update.")
+    print("")
+
+elif final_check:
+
+    print("========================================")
+    print("PSX FINAL CHECK")
+    print("========================================")
+    print("Market is closed.")
+    print("Running final price check.")
+    print("")
+
+else:
+
+    print("========================================")
+
+    if now.weekday() >= 5:
+        print("PSX CLOSED - WEEKEND")
+    else:
+        print("PSX CLOSED - OUTSIDE MARKET HOURS")
+
+    print("========================================")
+    print("Automatic run - nothing to update.")
+    print("")
+
+    sys.exit(0)
+
+
+print(
+    "Pakistan time:",
+    now.strftime("%Y-%m-%d %H:%M:%S")
+)
+
+print("")
+
+
 # ============================================================
 # SETTINGS
 # ============================================================
@@ -51,8 +132,6 @@ print("Pakistan time:", now.strftime("%Y-%m-%d %H:%M:%S"))
 SPREADSHEET_ID = "1t575nYx7UN-8k9ird0bwrKtIUkzcFD8N5FMDVG0Lx6k"
 
 WORKSHEET_NAME = "Stock Market"
-
-SERVICE_ACCOUNT_FILE = "service_account.json"
 
 TICKER_RANGE = "B4:B16"
 
@@ -81,9 +160,13 @@ credentials = Credentials.from_service_account_info(
 
 client = gspread.authorize(credentials)
 
-spreadsheet = client.open_by_key(SPREADSHEET_ID)
+spreadsheet = client.open_by_key(
+    SPREADSHEET_ID
+)
 
-sheet = spreadsheet.worksheet(WORKSHEET_NAME)
+sheet = spreadsheet.worksheet(
+    WORKSHEET_NAME
+)
 
 
 # ============================================================
@@ -125,7 +208,10 @@ def get_current_price(symbol):
 
         result = response.json()
 
-        data = result.get("data", [])
+        data = result.get(
+            "data",
+            []
+        )
 
         if not data:
 
@@ -136,10 +222,11 @@ def get_current_price(symbol):
 
             return None
 
-        # PSX returns newest trade first
+        # PSX returns newest trade first.
+        # [timestamp, price, volume]
+
         latest_trade = data[0]
 
-        # [timestamp, price, volume]
         current_price = latest_trade[1]
 
         print(
@@ -181,6 +268,7 @@ def get_previous_close(symbol):
             return None
 
         # Newest trading day first
+
         data = data.sort_values(
             "date",
             ascending=False
@@ -196,9 +284,11 @@ def get_previous_close(symbol):
             return None
 
         latest_date = data.iloc[0]["date"]
+
         latest_close = data.iloc[0]["close"]
 
         previous_date = data.iloc[1]["date"]
+
         previous_close = data.iloc[1]["close"]
 
         print(
@@ -226,19 +316,24 @@ def get_previous_close(symbol):
 # READ TICKERS
 # ============================================================
 
-tickers = sheet.get(TICKER_RANGE)
+tickers = sheet.get(
+    TICKER_RANGE
+)
 
 
 # ============================================================
 # READ EXISTING VALUES
 #
-# IMPORTANT:
-# If a fetch fails, we keep the old value.
+# If a fetch fails, the old value is kept.
 # ============================================================
 
-old_ldcp = sheet.get(LDCP_RANGE)
+old_ldcp = sheet.get(
+    LDCP_RANGE
+)
 
-old_current = sheet.get(CURRENT_RANGE)
+old_current = sheet.get(
+    CURRENT_RANGE
+)
 
 
 # ============================================================
@@ -256,25 +351,41 @@ current_results = []
 
 for i, row in enumerate(tickers):
 
-    symbol = row[0].strip().upper() if row and row[0] else ""
-
-    # Existing values
-    existing_ldcp = (
-        old_ldcp[i][0]
-        if i < len(old_ldcp) and old_ldcp[i]
+    symbol = (
+        row[0].strip().upper()
+        if row and row[0]
         else ""
     )
+
+    # Existing LDCP
+
+    existing_ldcp = (
+        old_ldcp[i][0]
+        if i < len(old_ldcp)
+        and old_ldcp[i]
+        else ""
+    )
+
+    # Existing current price
 
     existing_current = (
         old_current[i][0]
-        if i < len(old_current) and old_current[i]
+        if i < len(old_current)
+        and old_current[i]
         else ""
     )
 
+    # Empty symbol
+
     if not symbol:
 
-        ldcp_results.append([existing_ldcp])
-        current_results.append([existing_current])
+        ldcp_results.append(
+            [existing_ldcp]
+        )
+
+        current_results.append(
+            [existing_current]
+        )
 
         continue
 
@@ -283,16 +394,21 @@ for i, row in enumerate(tickers):
     print("Processing:", symbol)
     print("========================================")
 
-    # --------------------------------------------------------
+    # ========================================================
     # LDCP
-    # --------------------------------------------------------
+    # ========================================================
 
-    ldcp = get_previous_close(symbol)
+    ldcp = get_previous_close(
+        symbol
+    )
 
     if ldcp is None:
 
         # Keep old value
-        ldcp_results.append([existing_ldcp])
+
+        ldcp_results.append(
+            [existing_ldcp]
+        )
 
         print(
             symbol,
@@ -302,18 +418,25 @@ for i, row in enumerate(tickers):
 
     else:
 
-        ldcp_results.append([ldcp])
+        ldcp_results.append(
+            [ldcp]
+        )
 
-    # --------------------------------------------------------
+    # ========================================================
     # CURRENT PRICE
-    # --------------------------------------------------------
+    # ========================================================
 
-    current = get_current_price(symbol)
+    current = get_current_price(
+        symbol
+    )
 
     if current is None:
 
         # Keep old value
-        current_results.append([existing_current])
+
+        current_results.append(
+            [existing_current]
+        )
 
         print(
             symbol,
@@ -323,14 +446,18 @@ for i, row in enumerate(tickers):
 
     else:
 
-        current_results.append([current])
+        current_results.append(
+            [current]
+        )
 
     # Small delay
+
     time.sleep(0.2)
 
 
 # ============================================================
-# UPDATE ONLY F3:F15
+# UPDATE LDCP
+# F4:F16
 # ============================================================
 
 sheet.update(
@@ -340,24 +467,38 @@ sheet.update(
 
 
 # ============================================================
-# UPDATE ONLY G3:G15
+# UPDATE CURRENT PRICE
+# G4:G16
 # ============================================================
 
 sheet.update(
     range_name=CURRENT_RANGE,
     values=current_results
 )
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 
-update_date = now.strftime("%d-%m-%Y")
-update_time = now.strftime("%I:%M:%S %p")
+# ============================================================
+# UPDATE LAST UPDATE TIME
+# T2
+# ============================================================
+
+update_date = now.strftime(
+    "%d-%m-%Y"
+)
+
+update_time = now.strftime(
+    "%I:%M:%S %p"
+)
 
 sheet.update(
     range_name="T2",
-    values=[[f"{update_date}\n{update_time}"]]
+    values=[
+        [
+            f"{update_date}\n{update_time}"
+        ]
+    ]
 )
+
 
 # ============================================================
 # DONE
@@ -367,10 +508,31 @@ print("")
 print("========================================")
 print("UPDATE COMPLETE")
 print("========================================")
-print("F3:F15 = Previous trading-day close")
-print("G3:G15 = Current/latest PSX trade")
+
+print(
+    "F4:F16 = Previous trading-day close"
+)
+
+print(
+    "G4:G16 = Current/latest PSX trade"
+)
+
+print(
+    "T2 = Last update time"
+)
+
 print("")
-print("Failed fetches kept their previous values.")
-print("B3:B15 was NOT changed.")
-print("All other cells were NOT changed.")
+
+print(
+    "Failed fetches kept their previous values."
+)
+
+print(
+    "B4:B16 was NOT changed."
+)
+
+print(
+    "All other cells were NOT changed."
+)
+
 print("========================================")
