@@ -312,6 +312,8 @@ def get_previous_close(symbol):
         print(symbol, "LDCP FAILED:", e)
 
         return None
+
+
 # ============================================================
 # READ TICKERS
 # ============================================================
@@ -416,6 +418,8 @@ sheet_update(
     current_results
 )
 
+# Recompute current PKT timestamp at completion time
+now = datetime.now(PAKISTAN_TZ)
 update_date = now.strftime("%d-%m-%Y")
 update_time = now.strftime("%I:%M:%S %p")
 
