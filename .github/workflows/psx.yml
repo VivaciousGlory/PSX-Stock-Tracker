@@ -2,27 +2,25 @@ name: PSX Stock Tracker
 
 on:
   schedule:
-    # Monday - Thursday
-    # 09:07 to 15:57 PKT
-    - cron: "7,17,27,37,47,57 4-10 * * 1-4"
+    # Monday - Thursday (09:07 to 15:57 PKT)
+    - cron: "7-57/10 4-10 * * 1-4"
 
-    # Monday - Thursday final check
-    # 16:07 PKT
+    # Monday - Thursday final run (16:07 PKT)
     - cron: "7 11 * * 1-4"
 
-    # Friday morning
-    # 09:07 to 11:57 PKT
-    - cron: "7,17,27,37,47,57 4-6 * * 5"
+    # Friday morning (09:07 to 11:57 PKT)
+    - cron: "7-57/10 4-6 * * 5"
 
-    # Friday afternoon
-    # 14:07 to 15:57 PKT
-    - cron: "7,17,27,37,47,57 9-10 * * 5"
+    # Friday afternoon (14:07 to 15:57 PKT)
+    - cron: "7-57/10 9-10 * * 5"
 
-    # Friday final check
-    # 16:07 PKT
+    # Friday final run (16:07 PKT)
     - cron: "7 11 * * 5"
 
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   update-stocks:
@@ -39,12 +37,10 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
-      - name: Run PSX tracker
+      - name: Run PSX Tracker
         env:
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
           MANUAL_RUN: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
-        run: |
-          python psx.py
+        run: python psx.py
