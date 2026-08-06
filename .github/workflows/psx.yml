@@ -2,29 +2,23 @@ name: PSX Stock Tracker
 
 on:
   schedule:
-    # Monday - Thursday (09:07 to 15:57 PKT)
-    - cron: "7-57/10 4-10 * * 1-4"
-
-    # Monday - Thursday final run (16:07 PKT)
-    - cron: "7 11 * * 1-4"
-
-    # Friday morning (09:07 to 11:57 PKT)
-    - cron: "7-57/10 4-6 * * 5"
-
-    # Friday afternoon (14:07 to 15:57 PKT)
-    - cron: "7-57/10 9-10 * * 5"
-
-    # Friday final run (16:07 PKT)
-    - cron: "7 11 * * 5"
-
+    # Every 10 minutes on weekdays (UTC).
+    # Script itself decides whether to run based on PKT market hours.
+    - cron: "*/10 * * * 1-5"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Avoid overlapping runs
+concurrency:
+  group: psx-stock-tracker
+  cancel-in-progress: false
+
 jobs:
   update-stocks:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -38,6 +32,12 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Debug trigger and time
+        run: |
+          echo "event=${{ github.event_name }}"
+          echo "ref=${{ github.ref }}"
+          echo "utc_now=$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 
       - name: Run PSX Tracker
         env:
