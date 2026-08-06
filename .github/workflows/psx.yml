@@ -1,16 +1,11 @@
 name: PSX Stock Tracker
 
 on:
-  schedule:
-    # Every 10 minutes on weekdays (UTC).
-    # Script itself decides whether to run based on PKT market hours.
-    - cron: "*/10 * * * 1-5"
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Avoid overlapping runs
 concurrency:
   group: psx-stock-tracker
   cancel-in-progress: false
@@ -33,14 +28,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Debug trigger and time
-        run: |
-          echo "event=${{ github.event_name }}"
-          echo "ref=${{ github.ref }}"
-          echo "utc_now=$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-
       - name: Run PSX Tracker
         env:
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
-          MANUAL_RUN: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+          MANUAL_RUN: "0"
         run: python psx.py
