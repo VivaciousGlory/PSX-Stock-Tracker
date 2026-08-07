@@ -27,13 +27,14 @@ MANUAL_RUN = os.environ.get("MANUAL_RUN") == "1"
 # ============================================================
 
 if now.weekday() == 4:
-    MARKET_OPEN = datetime_time(9, 30)
-    MARKET_CLOSE = datetime_time(16, 0)
+    MARKET_OPEN = datetime_time(9, 10)
+    MARKET_CLOSE = datetime_time(16, 30)
+    FINAL_CHECK_END = datetime_time(16, 40)
 else:
     MARKET_OPEN = datetime_time(9, 30)
     MARKET_CLOSE = datetime_time(15, 30)
+    FINAL_CHECK_END = datetime_time(15, 40)
 
-FINAL_CHECK_END = datetime_time(16, 15)
 
 current_time = now.replace(second=0, microsecond=0).time()
 
