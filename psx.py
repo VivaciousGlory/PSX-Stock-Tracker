@@ -226,52 +226,104 @@ HEADERS = {
 }
 
 
+
 # ============================================================
-# GET CURRENT PRICE
+# GET CURRENT PRICE - PSX MARKET WATCH
 # ============================================================
 
 def get_current_price(symbol):
 
     try:
 
-        url = f"https://dps.psx.com.pk/timeseries/int/{symbol}"
+        url = "https://dps.psx.com.pk/market-watch"
 
         response = requests.get(
             url,
-            headers=HEADERS,
-            timeout=15
+            headers={
+                **HEADERS,
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            timeout=20
         )
 
-        if response.status_code != 200:
+        response.raise_for_status()
 
-            print(symbol, "Current HTTP:", response.status_code)
+        from bs4 import BeautifulSoup
 
-            return None
+        soup = BeautifulSoup(response.text, "html.parser")
 
-        result = response.json()
+        # Find the market-watch table containing the requested symbol.
+        for table in soup.find_all("table"):
 
-        data = result.get("data", [])
+            headers = [
+                cell.get_text(" ", strip=True).upper()
+                for cell in table.find_all("th")
+            ]
 
-        if not data:
+            if not headers:
+                continue
 
-            print(symbol, "Current: no data")
+            symbol_index = next(
+                (
+                    i for i, name in enumerate(headers)
+                    if name in ("SYMBOL", "SCRIP", "COMPANY")
+                ),
+                None
+            )
 
-            return None
+            current_index = next(
+                (
+                    i for i, name in enumerate(headers)
+                    if name in ("CURRENT", "PRICE", "CLOSE")
+                ),
+                None
+            )
 
-        latest_trade = data[0]
+            if symbol_index is None or current_index is None:
+                continue
 
-        current_price = latest_trade[1]
+            for tr in table.find_all("tr"):
 
-        print(symbol, "CURRENT:", current_price)
+                cells = tr.find_all(["td", "th"])
 
-        return float(current_price)
+                if len(cells) <= max(symbol_index, current_index):
+                    continue
+
+                row_symbol = cells[symbol_index].get_text(
+                    " ", strip=True
+                ).upper()
+
+                if row_symbol != symbol:
+                    continue
+
+                # Prefer machine-readable numeric values when available.
+                cell = cells[current_index]
+
+                raw_price = (
+                    cell.get("data-order")
+                    or cell.get("data-value")
+                    or cell.get_text(" ", strip=True)
+                )
+
+                current_price = float(
+                    str(raw_price).replace(",", "").strip()
+                )
+
+                if current_price <= 0:
+                    return None
+
+                print(symbol, "CURRENT:", current_price)
+
+                return current_price
+
+        print(symbol, "CURRENT: symbol/price column not found")
+        return None
 
     except Exception as e:
 
         print(symbol, "CURRENT FAILED:", e)
 
         return None
-
 
 # ============================================================
 # GET PREVIOUS CLOSE
