@@ -227,14 +227,16 @@ HEADERS = {
 
 
 
+
 # ============================================================
 # GET CURRENT PRICE - PSX MARKET WATCH
 # ============================================================
 
+from bs4 import BeautifulSoup
+
 def get_current_price(symbol):
 
     try:
-
         url = "https://dps.psx.com.pk/market-watch"
 
         response = requests.get(
@@ -248,82 +250,56 @@ def get_current_price(symbol):
 
         response.raise_for_status()
 
-        from bs4 import BeautifulSoup
-
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Find the market-watch table containing the requested symbol.
-        for table in soup.find_all("table"):
+        for symbol_cell in soup.select('td[data-name="symbol"]'):
 
-            headers = [
-                cell.get_text(" ", strip=True).upper()
-                for cell in table.find_all("th")
-            ]
+            row = symbol_cell.find_parent("tr")
 
-            if not headers:
+            if row is None:
                 continue
 
-            symbol_index = next(
-                (
-                    i for i, name in enumerate(headers)
-                    if name in ("SYMBOL", "SCRIP", "COMPANY")
-                ),
-                None
-            )
+            row_symbol = symbol_cell.get_text(
+                strip=True
+            ).upper()
 
-            current_index = next(
-                (
-                    i for i, name in enumerate(headers)
-                    if name in ("CURRENT", "PRICE", "CLOSE")
-                ),
-                None
-            )
-
-            if symbol_index is None or current_index is None:
+            if row_symbol != symbol.upper():
                 continue
 
-            for tr in table.find_all("tr"):
+            price_cell = row.select_one('td[data-name="close"]')
 
-                cells = tr.find_all(["td", "th"])
+            if price_cell is None:
+                print(symbol, "CURRENT: close cell not found")
+                print("Row HTML:", str(row)[:2000])
+                return None
 
-                if len(cells) <= max(symbol_index, current_index):
-                    continue
+            raw_price = (
+                price_cell.get("data-order")
+                or price_cell.get("data-value")
+                or price_cell.get_text(strip=True)
+            )
 
-                row_symbol = cells[symbol_index].get_text(
-                    " ", strip=True
-                ).upper()
+            current_price = float(
+                raw_price.replace(",", "").strip()
+            )
 
-                if row_symbol != symbol:
-                    continue
+            if current_price <= 0:
+                print(symbol, "CURRENT: invalid price", raw_price)
+                return None
 
-                # Prefer machine-readable numeric values when available.
-                cell = cells[current_index]
+            print(symbol, "CURRENT:", current_price)
 
-                raw_price = (
-                    cell.get("data-order")
-                    or cell.get("data-value")
-                    or cell.get_text(" ", strip=True)
-                )
+            return current_price
 
-                current_price = float(
-                    str(raw_price).replace(",", "").strip()
-                )
+        print(symbol, "CURRENT: symbol not found in response")
+        print("Response preview:", response.text[:1000])
 
-                if current_price <= 0:
-                    return None
-
-                print(symbol, "CURRENT:", current_price)
-
-                return current_price
-
-        print(symbol, "CURRENT: symbol/price column not found")
         return None
 
     except Exception as e:
-
-        print(symbol, "CURRENT FAILED:", e)
-
+        print(symbol, "CURRENT FAILED:", repr(e))
         return None
+
 
 # ============================================================
 # GET PREVIOUS CLOSE
