@@ -228,73 +228,70 @@ HEADERS = {
 
 
 
+
 # ============================================================
-# GET CURRENT PRICE - PSX MARKET WATCH
+# GET CURRENT PRICE - PSX TOKEN-AWARE REQUEST
 # ============================================================
 
-from bs4 import BeautifulSoup
+import re
 
 def get_current_price(symbol):
 
     try:
-        url = "https://dps.psx.com.pk/market-watch"
+        session = requests.Session()
+        session.headers.update(HEADERS)
 
-        response = requests.get(
-            url,
-            headers={
-                **HEADERS,
-                "X-Requested-With": "XMLHttpRequest"
-            },
+        # Load the PSX page to obtain its current request token.
+        page = session.get(
+            "https://dps.psx.com.pk/",
             timeout=20
         )
+        page.raise_for_status()
 
+        match = re.search(
+            r'window\.__ps\s*=\s*\{.*?["_]?k"\s*:\s*"([^"]+)"',
+            page.text
+        )
+
+        if not match:
+            print(symbol, "CURRENT FAILED: PSX token not found")
+            return None
+
+        token = match.group(1)
+
+        # PSX now requires this header for data endpoints.
+        session.headers.update({
+            "X-Req-Id": token,
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": "https://dps.psx.com.pk/"
+        })
+
+        url = f"https://dps.psx.com.pk/timeseries/int/{symbol}"
+
+        response = session.get(url, timeout=20)
         response.raise_for_status()
 
-        soup = BeautifulSoup(response.text, "html.parser")
+        result = response.json()
+        data = result.get("data", [])
 
-        for symbol_cell in soup.select('td[data-name="symbol"]'):
+        if not data:
+            print(symbol, "CURRENT: no intraday trades")
+            return None
 
-            row = symbol_cell.find_parent("tr")
+        # Each record is [Unix timestamp, price, quantity].
+        # Select the record with the newest timestamp.
+        latest_trade = max(data, key=lambda row: row[0])
+        current_price = float(latest_trade[1])
 
-            if row is None:
-                continue
+        print(
+            symbol,
+            "CURRENT:",
+            current_price,
+            "TRADE TIMESTAMP:",
+            latest_trade[0]
+        )
 
-            row_symbol = symbol_cell.get_text(
-                strip=True
-            ).upper()
-
-            if row_symbol != symbol.upper():
-                continue
-
-            price_cell = row.select_one('td[data-name="close"]')
-
-            if price_cell is None:
-                print(symbol, "CURRENT: close cell not found")
-                print("Row HTML:", str(row)[:2000])
-                return None
-
-            raw_price = (
-                price_cell.get("data-order")
-                or price_cell.get("data-value")
-                or price_cell.get_text(strip=True)
-            )
-
-            current_price = float(
-                raw_price.replace(",", "").strip()
-            )
-
-            if current_price <= 0:
-                print(symbol, "CURRENT: invalid price", raw_price)
-                return None
-
-            print(symbol, "CURRENT:", current_price)
-
-            return current_price
-
-        print(symbol, "CURRENT: symbol not found in response")
-        print("Response preview:", response.text[:1000])
-
-        return None
+        return current_price
 
     except Exception as e:
         print(symbol, "CURRENT FAILED:", repr(e))
